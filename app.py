@@ -156,7 +156,7 @@ class HymnCombinerApp:
         icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
         title_label = tk.Label(title_container, 
-                             text="PDF COMBINER, Keiphil",
+                             text="Hymn PDF Combiner",
                              font=ModernStyle.TITLE_FONT,
                              bg=ModernStyle.PRIMARY, fg="white")
         title_label.pack(side=tk.LEFT)
