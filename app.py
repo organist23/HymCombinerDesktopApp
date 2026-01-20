@@ -25,11 +25,11 @@ class ModernStyle:
     BORDER = "#BDC3C7"      # Light gray border
     
     # Fonts
-    TITLE_FONT = ("Segoe UI", 20, "bold")
-    HEADER_FONT = ("Segoe UI", 12, "bold")
-    LABEL_FONT = ("Segoe UI", 11)
-    BUTTON_FONT = ("Segoe UI", 10, "bold")
-    STATUS_FONT = ("Consolas", 9)
+    TITLE_FONT = ("Times New Roman", 20, "bold")
+    HEADER_FONT = ("Times New Roman", 12, "bold")
+    LABEL_FONT = ("Times New Roman", 11)
+    BUTTON_FONT = ("Times New Roman", 10, "bold")
+    STATUS_FONT = ("Times New Roman", 9)
 
 
 def parse_hymn_numbers(raw: str) -> list[int]:
@@ -152,7 +152,7 @@ class HymnCombinerApp:
         title_container.pack(pady=25)
         
         icon_label = tk.Label(title_container, text="📚", 
-                           font=("Segoe UI", 28), 
+                           font=("Times New Roman", 28), 
                            bg=ModernStyle.PRIMARY, fg="white")
         icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
@@ -185,7 +185,7 @@ class HymnCombinerApp:
         # Hymn input and clear button
         self.hymn_entry = tk.Entry(container, 
                                   font=ModernStyle.LABEL_FONT,
-                                  relief="solid", bd=2,
+                                  relief="solid", bd=1,
                                   bg="white",
                                   highlightthickness=0,
                                   highlightbackground=ModernStyle.BORDER,
@@ -216,7 +216,7 @@ class HymnCombinerApp:
         
         self.filename_entry = tk.Entry(container,
                                       font=ModernStyle.LABEL_FONT,
-                                      relief="solid", bd=2,
+                                      relief="solid", bd=1,
                                       bg="white",
                                       highlightthickness=0,
                                       highlightbackground=ModernStyle.BORDER,
