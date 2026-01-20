@@ -119,7 +119,7 @@ class HymnCombinerApp:
     def setup_window(self):
         """Setup main window properties."""
         self.root.title("Hymn PDF Combiner")
-        self.root.geometry("650x600")
+        self.root.geometry("650x630")  # Slightly increased height for progress bar
         self.root.resizable(False, False)
         self.root.configure(bg=ModernStyle.BACKGROUND)
         
@@ -141,6 +141,7 @@ class HymnCombinerApp:
         # Create sections
         self.create_header(main_container)
         self.create_input_section(main_container)
+        self.create_progress_section(main_container)
         
     def create_header(self, parent):
         """Create header section."""
@@ -195,10 +196,10 @@ class HymnCombinerApp:
                             font=ModernStyle.BUTTON_FONT,
                             bg=ModernStyle.ERROR, fg="white",
                             relief="flat", bd=0,
-                            padx=12, pady=5,
+                            width=8,
                             command=self.clear_hymn_input,
                             cursor="hand2")
-        clear_btn.grid(row=1, column=1, padx=(0, 0), pady=(0, 5))
+        clear_btn.grid(row=1, column=1, sticky=tk.W, padx=(0, 0), pady=(0, 5))
         
         # Examples label below input
         examples_label = tk.Label(container, 
@@ -232,12 +233,11 @@ class HymnCombinerApp:
             fg="white",
             relief="flat",
             bd=0,
-            padx=12,
-            pady=5,
+            width=8,
             command=self.start_merge,
             cursor="hand2",
         )
-        self.merge_button.grid(row=4, column=1, padx=(0, 0), pady=(0, 15))
+        self.merge_button.grid(row=4, column=1, sticky=tk.W, padx=(0, 0), pady=(0, 15))
         
         # Configure grid weights for proper expansion
         container.grid_columnconfigure(0, weight=1)
@@ -246,6 +246,40 @@ class HymnCombinerApp:
         # Bind hover effects
         self.merge_button.bind("<Enter>", lambda e: self.merge_button.config(bg=ModernStyle.SECONDARY))
         self.merge_button.bind("<Leave>", lambda e: self.merge_button.config(bg=ModernStyle.PRIMARY))
+        
+    def create_progress_section(self, parent):
+        """Create progress bar section with green theme."""
+        progress_container = tk.Frame(parent, bg=ModernStyle.BACKGROUND)
+        progress_container.pack(fill=tk.X, padx=30, pady=(15, 10))
+        
+        # Progress label
+        self.progress_label = tk.Label(progress_container, 
+                                      text="Status: Ready",
+                                      font=ModernStyle.LABEL_FONT,
+                                      bg=ModernStyle.BACKGROUND, fg=ModernStyle.TEXT)
+        self.progress_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # Progress bar frame
+        progress_frame = tk.Frame(progress_container, 
+                                 bg="#E8F5E8",  # Light green background
+                                 relief="solid",
+                                 bd=1,
+                                 height=12)
+        progress_frame.pack(fill=tk.X, pady=(0, 5))
+        progress_frame.pack_propagate(False)
+        
+        # Progress bar fill with green color
+        self.progress_bar = tk.Frame(progress_frame, 
+                                    bg=ModernStyle.PRIMARY,  # Green color
+                                    height=8)
+        self.progress_bar.place(x=1, y=2, width=0, height=8)
+        
+        # Progress percentage
+        self.progress_percent = tk.Label(progress_container, 
+                                        text="0%",
+                                        font=ModernStyle.STATUS_FONT,
+                                        bg=ModernStyle.BACKGROUND, fg=ModernStyle.SUCCESS)
+        self.progress_percent.pack(anchor=tk.E)
         
     def center_window(self):
         """Center window on screen."""
@@ -283,37 +317,73 @@ class HymnCombinerApp:
             state=tk.DISABLED
         )
         
+        # Initialize progress bar
+        self.update_progress(0, "Starting merge process...")
+        
+        # Clear hymn input for new task
+        self.hymn_entry.delete(0, tk.END)
+        
         # Run merge in separate thread
         thread = threading.Thread(target=self.merge_pdfs, args=(hymn_input, output_filename))
         thread.daemon = True
         thread.start()
         
+    def update_progress(self, percentage, status_text):
+        """Update progress bar and status text."""
+        self.root.after(0, self._update_progress_ui, percentage, status_text)
+        
+    def _update_progress_ui(self, percentage, status_text):
+        """Update progress UI elements (called from main thread)."""
+        # Update status text
+        self.progress_label.config(text=f"Status: {status_text}")
+        
+        # Update progress bar
+        self.root.update_idletasks()
+        progress_frame_width = self.progress_bar.master.winfo_width()
+        if progress_frame_width > 1:
+            bar_width = int((percentage / 100) * (progress_frame_width - 2))
+            self.progress_bar.place(x=1, y=2, width=bar_width, height=8)
+        
+        # Update percentage text
+        if percentage == 100:
+            self.progress_percent.config(text="Done", fg=ModernStyle.SUCCESS)
+        else:
+            self.progress_percent.config(text=f"{percentage}%")
+            
     def merge_pdfs(self, hymn_input, output_filename):
-        """Perform actual PDF merging with simplified feedback."""
+        """Perform actual PDF merging with progress tracking."""
         try:
             # Parse hymn numbers
+            self.update_progress(10, "Parsing hymn numbers...")
             hymn_numbers = parse_hymn_numbers(hymn_input)
             if not hymn_numbers:
+                self.update_progress(100, "Error - No valid hymn numbers")
                 self.root.after(0, lambda: messagebox.showerror("Error", "No valid hymn numbers found."))
                 return
                 
             # Setup output path
+            self.update_progress(20, "Setting up output path...")
             output_path = Path(output_filename)
             if not output_path.is_absolute():
                 output_path = self.output_dir / output_path.name
                 
             # Find PDF files
+            self.update_progress(30, "Finding PDF files...")
             missing = []
             to_merge = []
             
-            for n in hymn_numbers:
+            for i, n in enumerate(hymn_numbers):
                 paths = pdf_paths_for_hymn(self.pdf_dir, n)
                 if not paths:
                     missing.append(n)
                     continue
                 to_merge.extend(paths)
+                # Update progress during file search
+                progress = 30 + int((i + 1) / len(hymn_numbers) * 20)
+                self.update_progress(progress, f"Finding PDF files... ({i + 1}/{len(hymn_numbers)} hymns checked)")
                 
             if not to_merge:
+                self.update_progress(100, "Error - No PDF files found")
                 error_msg = "No PDF files found for the provided hymn numbers."
                 if missing:
                     error_msg += f"\nMissing: {', '.join(map(str, missing))}"
@@ -321,7 +391,9 @@ class HymnCombinerApp:
                 return
             
             # Merge PDFs
+            self.update_progress(60, "Merging PDF files...")
             merge_pdfs(to_merge, output_path)
+            self.update_progress(90, "Finalizing merge...")
             
             # Prepare success message
             success_msg = f"PDF merged successfully!\n\n"
@@ -333,6 +405,9 @@ class HymnCombinerApp:
             
             if missing:
                 success_msg += f"\n\nNote: Missing hymn PDFs: {', '.join(map(str, missing))}"
+            
+            # Mark as Done before showing message box
+            self.update_progress(100, "Done")
                 
             # Show success message with option to open folder
             result = messagebox.askyesno("Success!", success_msg)
@@ -351,17 +426,25 @@ class HymnCombinerApp:
                     messagebox.showinfo("Info", f"Could not open folder automatically. Please check:\n{output_path.parent}")
             
         except ImportError as e:
+            self.update_progress(100, "Error - Missing dependency")
             error_msg = f"Missing dependency: {e}\n\nInstall with: pip install pypdf"
             self.root.after(0, lambda: messagebox.showerror("Dependency Error", error_msg))
         except Exception as e:
+            self.update_progress(100, "Error - Merge failed")
             self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to merge PDFs: {e}"))
         finally:
             # Restore UI state
-            self.root.after(0, self.merge_button.config(
-                text="Merge PDFs",
-                bg=ModernStyle.PRIMARY,
-                state=tk.NORMAL
-            ))
+            self.root.after(0, self.restore_ui_state)
+            
+    def restore_ui_state(self):
+        """Restore UI state after merge completion."""
+        self.merge_button.config(
+            text="🚀 Merge",
+            bg=ModernStyle.PRIMARY,
+            state=tk.NORMAL
+        )
+        # Reset progress bar to zero
+        self.update_progress(0, "Ready")
 
 
 def main():
